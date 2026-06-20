@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Survei Kepuasan Orang Tua — SDIT Ar-Rahmah</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --sky:#2E86C1;
+    --sky-dark:#1B5E8C;
+    --sky-light:#EAF4FC;
+    --gold:#C9A227;
+    --gold-light:#F7EFD8;
+    --white:#FFFFFF;
+    --ink:#1F2A37;
+    --ink-soft:#5B6B7B;
+    --line:#E2E8F0;
+    --bg:#F6F9FC;
+    --good:#27AE60;
+    --warn:#F39C12;
+    --bad:#E74C3C;
+    --radius:16px;
+    --shadow:0 8px 24px rgba(27,94,140,0.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+    background:var(--bg);color:var(--ink);
+    min-height:100vh;-webkit-font-smoothing:antialiased;
+  }
+
+  /* ===== PIN GATE ===== */
+  .gate{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    padding:24px;
+    background:linear-gradient(135deg,var(--sky) 0%,var(--sky-dark) 100%);
+  }
+  .gate-card{
+    background:var(--white);border-radius:var(--radius);box-shadow:0 20px 50px rgba(0,0,0,0.25);
+    padding:36px 28px;max-width:360px;width:100%;text-align:center;
+  }
+  .gate-icon{
+    width:64px;height:64px;border-radius:50%;
+    background:linear-gradient(135deg,var(--sky),var(--gold));
+    display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;
+    margin:0 auto 16px;
+  }
+  .gate-card h1{font-size:18px;font-weight:700;margin-bottom:6px;}
+  .gate-card p{font-size:13.5px;color:var(--ink-soft);margin-bottom:20px;line-height:1.5;}
+  .gate-card input{
+    width:100%;padding:13px 16px;border:1.5px solid var(--line);border-radius:10px;
+    font-size:20px;letter-spacing:6px;text-align:center;margin-bottom:14px;font-family:inherit;
+  }
+  .gate-card input:focus{outline:none;border-color:var(--sky);}
+  .gate-card button{
+    width:100%;padding:13px;border:none;border-radius:10px;
+    background:linear-gradient(135deg,var(--sky),var(--sky-dark));color:#fff;
+    font-size:15px;font-weight:700;cursor:pointer;
+  }
+  .gate-error{color:var(--bad);font-size:12.5px;margin-top:10px;display:none;}
+
+  /* ===== DASHBOARD ===== */
+  .dash{display:none;max-width:1100px;margin:0 auto;padding:24px 16px 60px;}
+  .dash.active{display:block;}
+
+  .dash-head{
+    background:linear-gradient(135deg,var(--sky),var(--sky-dark));
+    color:#fff;border-radius:var(--radius);padding:24px 24px;margin-bottom:20px;
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;
+  }
+  .dash-head h1{font-size:19px;font-weight:700;}
+  .dash-head p{font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px;}
+  .refresh-btn{
+    background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;
+    padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;
+  }
+
+  .loading-state{text-align:center;padding:60px 20px;color:var(--ink-soft);}
+  .spinner{
+    width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--sky);
+    border-radius:50%;margin:0 auto 14px;animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .grid{display:grid;gap:16px;}
+  .grid-4{grid-template-columns:repeat(4,1fr);}
+  .grid-2{grid-template-columns:1fr 1fr;}
+  @media(max-width:760px){
+    .grid-4{grid-template-columns:repeat(2,1fr);}
+    .grid-2{grid-template-columns:1fr;}
+  }
+
+  .card{
+    background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:20px;
+  }
+  .card-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+
+  .stat-card{padding:18px;}
+  .stat-label{font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:6px;}
+  .stat-value{font-size:26px;font-weight:800;color:var(--sky-dark);}
+  .stat-sub{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
+
+  .section{margin-bottom:20px;}
+
+  /* category bars */
+  .cat-row{margin-bottom:14px;}
+  .cat-row:last-child{margin-bottom:0;}
+  .cat-row-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;}
+  .cat-row-top .name{font-weight:600;color:var(--ink);}
+  .cat-row-top .score{font-weight:700;color:var(--sky-dark);}
+  .cat-bar-bg{height:9px;border-radius:99px;background:var(--line);overflow:hidden;}
+  .cat-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--sky),var(--gold));}
+
+  /* question table */
+  .q-list{display:flex;flex-direction:column;gap:10px;}
+  .q-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--sky-light);}
+  .q-row:last-child{border-bottom:none;}
+  .q-row .label{font-size:13px;color:var(--ink);flex:1;}
+  .q-row .badge{
+    flex-shrink:0;font-size:13px;font-weight:700;padding:4px 10px;border-radius:99px;
+    min-width:42px;text-align:center;
+  }
+  .badge-good{background:#E8F8EF;color:var(--good);}
+  .badge-warn{background:#FEF5E7;color:var(--warn);}
+  .badge-bad{background:#FDEDEC;color:var(--bad);}
+
+  .top-bottom{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:760px){.top-bottom{grid-template-columns:1fr;}}
+  .tb-item{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:8px 0;border-bottom:1px dashed var(--line);}
+  .tb-item:last-child{border-bottom:none;}
+
+  .chip-list{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{
+    background:var(--sky-light);color:var(--sky-dark);font-size:12.5px;font-weight:600;
+    padding:6px 12px;border-radius:99px;
+  }
+  .chip.gold{background:var(--gold-light);color:#8a6d1a;}
+
+  .testi-card{
+    background:var(--sky-light);border-radius:12px;padding:14px 16px;margin-bottom:10px;
+  }
+  .testi-card:last-child{margin-bottom:0;}
+  .testi-top{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
+  .testi-top .name{font-weight:700;color:var(--ink);}
+  .testi-msg{font-size:13.5px;color:var(--ink);line-height:1.5;}
+
+  .empty-state{text-align:center;padding:30px 16px;color:var(--ink-soft);font-size:13.5px;}
+
+  canvas{max-height:260px;}
+</style>
+</head>
+<body>
+
+<!-- ===== PIN GATE ===== -->
+<div class="gate" id="gateScreen">
+  <div class="gate-card">
+    <div class="gate-icon">🔒</div>
+    <h1>Dashboard Survei SDIT</h1>
+    <p>Masukkan PIN untuk melihat hasil survei kepuasan orang tua SDIT Ar-Rahmah.</p>
+    <input type="password" id="pinInput" inputmode="numeric" maxlength="6" placeholder="••••">
+    <button id="btnUnlock">Buka Dashboard</button>
+    <div class="gate-error" id="gateError">PIN salah. Silakan coba lagi.</div>
+  </div>
+</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div class="dash" id="dashScreen">
+
+  <div class="dash-head">
+    <div>
+      <h1>📊 Dashboard Survei Kepuasan Orang Tua</h1>
+      <p>SDIT Ar-Rahmah — Yayasan Ar-Rahmah Sulawesi</p>
+    </div>
+    <button class="refresh-btn" id="btnRefresh">⟳ Muat Ulang</button>
+  </div>
+
+  <div class="loading-state" id="loadingState">
+    <div class="spinner"></div>
+    <div>Memuat data survei...</div>
+  </div>
+
+  <div id="dashContent" style="display:none;">
+
+    <!-- STAT CARDS -->
+    <div class="grid grid-4 section">
+      <div class="card stat-card">
+        <div class="stat-label">Total Responden</div>
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-sub">orang tua telah mengisi</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-label">Skor NPS Rata-rata</div>
+        <div class="stat-value" id="statNps">0.0</div>
+        <div class="stat-sub">skala 1–5</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-label">Skor Kepuasan Umum</div>
+        <div class="stat-value" id="statOverall">0.0</div>
+        <div class="stat-sub">rata-rata seluruh kategori</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-label">Rencana Lanjut SMPIT</div>
+        <div class="stat-value" id="statLanjutYa">0%</div>
+        <div class="stat-sub">menjawab "Ya"</div>
+      </div>
+    </div>
+
+    <!-- KATEGORI + NPS CHART -->
+    <div class="grid grid-2 section">
+      <div class="card">
+        <div class="card-title">📋 Skor per Kategori</div>
+        <div id="kategoriBars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">⭐ Distribusi Skor Rekomendasi (NPS)</div>
+        <canvas id="npsChart"></canvas>
+      </div>
+    </div>
+
+    <!-- KELAS + LANJUT SMPIT -->
+    <div class="grid grid-2 section">
+      <div class="card">
+        <div class="card-title">🏫 Distribusi per Kelas</div>
+        <canvas id="kelasChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">🎓 Rencana Lanjut ke SMPIT Ar-Rahmah</div>
+        <canvas id="lanjutChart"></canvas>
+      </div>
+    </div>
+
+    <!-- TOP ALASAN LANJUT -->
+    <div class="card section">
+      <div class="card-title">💬 Alasan Utama yang Disebutkan Orang Tua</div>
+      <div class="chip-list" id="alasanChips"></div>
+    </div>
+
+    <!-- SATU KATA -->
+    <div class="card section">
+      <div class="card-title">✨ Satu Kata untuk Ar-Rahmah</div>
+      <div class="chip-list" id="satuKataChips"></div>
+    </div>
+
+    <!-- TOP & BOTTOM QUESTIONS -->
+    <div class="card section">
+      <div class="card-title">🏆 Pertanyaan dengan Skor Tertinggi & Terendah</div>
+      <div class="top-bottom">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--good);margin-bottom:8px;">TERTINGGI</div>
+          <div id="topQuestions"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--bad);margin-bottom:8px;">PERLU PERHATIAN</div>
+          <div id="bottomQuestions"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEMUA PERTANYAAN -->
+    <div class="card section">
+      <div class="card-title">📝 Rincian Skor Seluruh Pertanyaan</div>
+      <div class="q-list" id="allQuestions"></div>
+    </div>
+
+    <!-- TREN -->
+    <div class="card section">
+      <div class="card-title">📈 Tren Jumlah Respon (30 Hari Terakhir)</div>
+      <canvas id="trendChart"></canvas>
+    </div>
+
+    <!-- TESTIMONI -->
+    <div class="card section">
+      <div class="card-title">💌 Masukan & Apresiasi Terbaru</div>
+      <div id="testimoniList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbwi7kE8MVv7uA9NoiBj809RvWbNtgiQZoCGMb8FRbryT0zyF9PRpJXCzOEqLZCSmqCG/exec';
+  let dashboardData = null;
+  let charts = {};
+
+  // ===== PIN GATE =====
+  document.getElementById('btnUnlock').addEventListener('click', tryUnlock);
+  document.getElementById('pinInput').addEventListener('keypress', function(e){
+    if(e.key === 'Enter') tryUnlock();
+  });
+
+  function tryUnlock(){
+    const pin = document.getElementById('pinInput').value.trim();
+    if(!pin){ showGateError('Mohon masukkan PIN.'); return; }
+    loadDashboard(pin);
+  }
+
+  function showGateError(msg){
+    const err = document.getElementById('gateError');
+    err.textContent = msg;
+    err.style.display = 'block';
+  }
+
+  function loadDashboard(pin){
+    document.getElementById('gateError').style.display = 'none';
+    const url = GAS_URL + '?action=getDashboard&pin=' + encodeURIComponent(pin);
+
+    fetch(url)
+      .then(r => r.json())
+      .then(data => {
+        if(data.error){
+          showGateError(data.error);
+          return;
+        }
+        dashboardData = data;
+        document.getElementById('gateScreen').style.display = 'none';
+        document.getElementById('dashScreen').classList.add('active');
+        renderDashboard(data);
+      })
+      .catch(() => {
+        showGateError('Gagal memuat data. Periksa koneksi atau URL GAS.');
+      });
+  }
+
+  document.getElementById('btnRefresh').addEventListener('click', function(){
+    const pin = document.getElementById('pinInput').value.trim();
+    document.getElementById('dashContent').style.display = 'none';
+    document.getElementById('loadingState').style.display = 'block';
+    loadDashboard(pin);
+  });
+
+  // ===== RENDER =====
+  function safeRender(fn, label){
+    try { fn(); }
+    catch(err){ console.error('Gagal render: ' + label, err); }
+  }
+
+  function renderDashboard(data){
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('dashContent').style.display = 'block';
+
+    if (typeof Chart === 'undefined') {
+      const warn = document.createElement('div');
+      warn.style.cssText = 'background:#FDEDEC;border:1px solid #E74C3C;color:#C0392B;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;';
+      warn.textContent = '⚠️ Grafik (Chart.js) gagal dimuat — biasanya karena file dibuka langsung dari folder/Downloads. Unggah file ini ke hosting (Vercel/GitHub Pages) atau buka lewat server lokal agar semua grafik tampil sempurna.';
+      document.getElementById('dashContent').prepend(warn);
+    }
+
+    safeRender(() => renderStats(data), 'Statistik ringkas');
+    safeRender(() => renderKategoriBars(data.kategoriScores), 'Skor per kategori');
+    safeRender(() => renderNpsChart(data.npsDistribution), 'Grafik NPS');
+    safeRender(() => renderKelasChart(data.kelasDistribution), 'Grafik kelas');
+    safeRender(() => renderLanjutChart(data.lanjutSmpitDistribution), 'Grafik lanjut SMPIT');
+    safeRender(() => renderAlasanChips(data.alasanLanjutTop), 'Alasan lanjut');
+    safeRender(() => renderSatuKataChips(data.satuKataList), 'Satu kata');
+    safeRender(() => renderTopBottom(data.questionScores), 'Top/bottom pertanyaan');
+    safeRender(() => renderAllQuestions(data.questionScores), 'Rincian semua pertanyaan');
+    safeRender(() => renderTrendChart(data.trend30Hari), 'Tren respon');
+    safeRender(() => renderTestimoni(data.testimoni), 'Testimoni');
+  }
+
+  function renderStats(data){
+    document.getElementById('statTotal').textContent = data.totalResponden || 0;
+    document.getElementById('statNps').textContent = (data.npsAverage || 0).toFixed(1);
+
+    const overall = data.kategoriScores && data.kategoriScores.length
+      ? data.kategoriScores.reduce((a,k)=>a+k.rataRata,0) / data.kategoriScores.length
+      : 0;
+    document.getElementById('statOverall').textContent = overall.toFixed(1);
+
+    const lanjut = data.lanjutSmpitDistribution || {};
+    const totalLanjut = (lanjut['Ya']||0)+(lanjut['Tidak']||0)+(lanjut['Belum Tahu']||0);
+    const pctYa = totalLanjut ? Math.round((lanjut['Ya']||0)/totalLanjut*100) : 0;
+    document.getElementById('statLanjutYa').textContent = pctYa + '%';
+  }
+
+  function renderKategoriBars(kategoriScores){
+    const container = document.getElementById('kategoriBars');
+    container.innerHTML = '';
+    if(!kategoriScores || !kategoriScores.length){
+      container.innerHTML = '<div class="empty-state">Belum ada data.</div>';
+      return;
+    }
+    kategoriScores.forEach(function(k){
+      const pct = (k.rataRata/5*100).toFixed(0);
+      const row = document.createElement('div');
+      row.className = 'cat-row';
+      row.innerHTML = '<div class="cat-row-top"><span class="name">'+k.kategori+'</span><span class="score">'+k.rataRata.toFixed(2)+' / 5</span></div>'
+        + '<div class="cat-bar-bg"><div class="cat-bar-fill" style="width:'+pct+'%;"></div></div>';
+      container.appendChild(row);
+    });
+  }
+
+  function renderNpsChart(dist){
+    const ctx = document.getElementById('npsChart');
+    if(charts.nps) charts.nps.destroy();
+    charts.nps = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['1','2','3','4','5'],
+        datasets: [{
+          data: dist || [0,0,0,0,0],
+          backgroundColor: ['#E74C3C','#F39C12','#D4AC0D','#2E86C1','#C9A227'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive:true,
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } }
+      }
+    });
+  }
+
+  function renderKelasChart(dist){
+    const ctx = document.getElementById('kelasChart');
+    const labels = Object.keys(dist || {}).sort();
+    const values = labels.map(k => dist[k]);
+    if(charts.kelas) charts.kelas.destroy();
+    charts.kelas = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels.map(l => 'Kelas '+l),
+        datasets: [{ data: values, backgroundColor: '#2E86C1', borderRadius: 6 }]
+      },
+      options: {
+        responsive:true,
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } }
+      }
+    });
+  }
+
+  function renderLanjutChart(dist){
+    const ctx = document.getElementById('lanjutChart');
+    const d = dist || { 'Ya':0, 'Tidak':0, 'Belum Tahu':0 };
+    if(charts.lanjut) charts.lanjut.destroy();
+    charts.lanjut = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Ya, lanjut SMPIT','Tidak, sekolah lain','Belum tahu'],
+        datasets: [{
+          data: [d['Ya']||0, d['Tidak']||0, d['Belum Tahu']||0],
+          backgroundColor: ['#27AE60','#E74C3C','#C9A227']
+        }]
+      },
+      options: { responsive:true, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, font:{size:11} } } } }
+    });
+  }
+
+  function renderAlasanChips(list){
+    const container = document.getElementById('alasanChips');
+    container.innerHTML = '';
+    if(!list || !list.length){
+      container.innerHTML = '<div class="empty-state">Belum ada alasan tercatat.</div>';
+      return;
+    }
+    list.forEach(function(item){
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = item.alasan + ' (' + item.jumlah + ')';
+      container.appendChild(chip);
+    });
+  }
+
+  function renderSatuKataChips(list){
+    const container = document.getElementById('satuKataChips');
+    container.innerHTML = '';
+    if(!list || !list.length){
+      container.innerHTML = '<div class="empty-state">Belum ada kata yang diisi.</div>';
+      return;
+    }
+    list.forEach(function(kata){
+      const chip = document.createElement('span');
+      chip.className = 'chip gold';
+      chip.textContent = kata;
+      container.appendChild(chip);
+    });
+  }
+
+  function badgeClass(score){
+    if(score >= 4) return 'badge-good';
+    if(score >= 3) return 'badge-warn';
+    return 'badge-bad';
+  }
+
+  function renderTopBottom(questionScores){
+    const valid = (questionScores || []).filter(q => q.jumlahJawaban > 0);
+    const sorted = valid.slice().sort((a,b) => b.rataRata - a.rataRata);
+    const top3 = sorted.slice(0,3);
+    const bottom3 = sorted.slice(-3).reverse();
+
+    const topEl = document.getElementById('topQuestions');
+    const bottomEl = document.getElementById('bottomQuestions');
+    topEl.innerHTML = '';
+    bottomEl.innerHTML = '';
+
+    if(!top3.length){
+      topEl.innerHTML = '<div class="empty-state">Belum ada data.</div>';
+      bottomEl.innerHTML = '<div class="empty-state">Belum ada data.</div>';
+      return;
+    }
+
+    top3.forEach(function(q){
+      const row = document.createElement('div');
+      row.className = 'tb-item';
+      row.innerHTML = '<span>'+q.label+'</span><strong>'+q.rataRata.toFixed(2)+'</strong>';
+      topEl.appendChild(row);
+    });
+    bottom3.forEach(function(q){
+      const row = document.createElement('div');
+      row.className = 'tb-item';
+      row.innerHTML = '<span>'+q.label+'</span><strong>'+q.rataRata.toFixed(2)+'</strong>';
+      bottomEl.appendChild(row);
+    });
+  }
+
+  function renderAllQuestions(questionScores){
+    const container = document.getElementById('allQuestions');
+    container.innerHTML = '';
+    if(!questionScores || !questionScores.length){
+      container.innerHTML = '<div class="empty-state">Belum ada data.</div>';
+      return;
+    }
+    questionScores.forEach(function(q){
+      const row = document.createElement('div');
+      row.className = 'q-row';
+      row.innerHTML = '<span class="label">'+q.label+'</span><span class="badge '+badgeClass(q.rataRata)+'">'+(q.jumlahJawaban ? q.rataRata.toFixed(2) : '—')+'</span>';
+      container.appendChild(row);
+    });
+  }
+
+  function renderTrendChart(trend){
+    const ctx = document.getElementById('trendChart');
+    const labels = (trend || []).map(t => t.tanggal.slice(5)); // MM-DD
+    const values = (trend || []).map(t => t.jumlah);
+    if(charts.trend) charts.trend.destroy();
+    charts.trend = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values, borderColor:'#2E86C1', backgroundColor:'rgba(46,134,193,0.12)',
+          fill:true, tension:0.3, pointRadius:3
+        }]
+      },
+      options: {
+        responsive:true,
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } }
+      }
+    });
+  }
+
+  function renderTestimoni(list){
+    const container = document.getElementById('testimoniList');
+    container.innerHTML = '';
+    if(!list || !list.length){
+      container.innerHTML = '<div class="empty-state">Belum ada masukan tertulis dari orang tua.</div>';
+      return;
+    }
+    list.forEach(function(t){
+      const card = document.createElement('div');
+      card.className = 'testi-card';
+      const tgl = t.timestamp ? new Date(t.timestamp).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'}) : '';
+      card.innerHTML = '<div class="testi-top"><span class="name">'+t.nama+(t.kelas ? ' · Kelas '+t.kelas : '')+'</span><span>'+tgl+'</span></div>'
+        + '<div class="testi-msg">'+escapeHtml(t.pesan)+'</div>';
+      container.appendChild(card);
+    });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+})();
+</script>
+
+</body>
+</html>
