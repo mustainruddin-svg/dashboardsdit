@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Survei Kepuasan Orang Tua — SDIT Ar-Rahmah</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" onerror="this.dataset.failed='1';var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';document.head.appendChild(s);"></script>
 <style>
   :root{
     --sky:#2E86C1;
@@ -337,17 +337,43 @@
     catch(err){ console.error('Gagal render: ' + label, err); }
   }
 
+  function showChartWarning(){
+    const existing = document.getElementById('chartLoadWarning');
+    if (existing) return; // jangan duplikat
+    const warn = document.createElement('div');
+    warn.id = 'chartLoadWarning';
+    warn.style.cssText = 'background:#FDEDEC;border:1px solid #E74C3C;color:#C0392B;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;';
+    warn.textContent = '⚠️ Grafik (Chart.js) gagal dimuat dari CDN — kemungkinan diblokir oleh ad-blocker, ekstensi privasi, atau jaringan. Bagian skor, alasan, dan testimoni di bawah tetap bisa dibaca normal. Coba nonaktifkan ad-blocker untuk halaman ini lalu muat ulang.';
+    document.getElementById('dashContent').prepend(warn);
+  }
+
+  function clearChartWarning(){
+    const existing = document.getElementById('chartLoadWarning');
+    if (existing) existing.remove();
+  }
+
   function renderDashboard(data){
     document.getElementById('loadingState').style.display = 'none';
     document.getElementById('dashContent').style.display = 'block';
+    clearChartWarning();
 
-    if (typeof Chart === 'undefined') {
-      const warn = document.createElement('div');
-      warn.style.cssText = 'background:#FDEDEC;border:1px solid #E74C3C;color:#C0392B;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;';
-      warn.textContent = '⚠️ Grafik (Chart.js) gagal dimuat — biasanya karena file dibuka langsung dari folder/Downloads. Unggah file ini ke hosting (Vercel/GitHub Pages) atau buka lewat server lokal agar semua grafik tampil sempurna.';
-      document.getElementById('dashContent').prepend(warn);
-    }
+    // Tunggu Chart.js siap (maks ~1.5 detik), karena CDN fallback dimuat async.
+    let waited = 0;
+    const maxWait = 1500;
+    const interval = 100;
 
+    (function waitForChart(){
+      if (typeof Chart !== 'undefined' || waited >= maxWait){
+        if (typeof Chart === 'undefined') showChartWarning();
+        renderAllSections(data);
+        return;
+      }
+      waited += interval;
+      setTimeout(waitForChart, interval);
+    })();
+  }
+
+  function renderAllSections(data){
     safeRender(() => renderStats(data), 'Statistik ringkas');
     safeRender(() => renderKategoriBars(data.kategoriScores), 'Skor per kategori');
     safeRender(() => renderNpsChart(data.npsDistribution), 'Grafik NPS');
